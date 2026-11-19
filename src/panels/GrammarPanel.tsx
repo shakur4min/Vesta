@@ -19,6 +19,7 @@ interface GrammarPanelProps {
   onSelectChapter: (num: number) => void;
   onNavigateToQuestions: (chapterNum: number) => void;
   initialMobileOpen?: boolean;
+  onMobileLessonOpenChange?: (open: boolean) => void;
 }
 
 export const GrammarPanel: React.FC<GrammarPanelProps> = ({
@@ -26,7 +27,8 @@ export const GrammarPanel: React.FC<GrammarPanelProps> = ({
   selectedChapterNumber,
   onSelectChapter,
   onNavigateToQuestions,
-  initialMobileOpen = false
+  initialMobileOpen = false,
+  onMobileLessonOpenChange
 }) => {
   const isEnFa = settings.language === 'en-fa';
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,6 +65,7 @@ export const GrammarPanel: React.FC<GrammarPanelProps> = ({
     const handlePopState = (e: PopStateEvent) => {
       if (mobileLessonOpen && (!e.state || !e.state.vestaGrammarLesson)) {
         setMobileLessonOpen(false);
+        onMobileLessonOpenChange?.(false);
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -85,6 +88,7 @@ export const GrammarPanel: React.FC<GrammarPanelProps> = ({
     }
     onSelectChapter(chapterNumber);
     setMobileLessonOpen(true);
+    onMobileLessonOpenChange?.(true);
 
     // Push browser history state so device/browser Back button returns to chapter list
     try {
@@ -98,6 +102,7 @@ export const GrammarPanel: React.FC<GrammarPanelProps> = ({
 
   const handleMobileBack = () => {
     setMobileLessonOpen(false);
+    onMobileLessonOpenChange?.(false);
     try {
       if (typeof window !== 'undefined' && window.history.state?.vestaGrammarLesson) {
         window.history.back();
