@@ -182,3 +182,20 @@ html, body, #root {
   overflow: hidden;
   position: fixed;
 }
+
+
+/* Mobile viewport and bottom navigation:
+   Use the dynamic viewport so browser chrome cannot cover the app navigation.
+   Keep the bottom safe-area outside the 64px navigation content height. */
+.vesta-app-shell {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+}
+
+.vesta-navbar {
+  box-sizing: content-box;
+  height: 4rem;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  flex: 0 0 auto;
+}
