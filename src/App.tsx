@@ -31,9 +31,41 @@ import { DashboardPanel } from './panels/DashboardPanel';
 import { SettingsPanel } from './panels/SettingsPanel';
 import { JollyJesterModal } from './panels/JollyJesterModal';
 
+type PersistedPanelProgress = {
+  lastStudyPanel: 'questions' | 'grammar';
+  grammarChapter: number;
+  questionsChapter: number;
+  questionIndex: number;
+};
+
+const PANEL_PROGRESS_KEY = 'vesta_panel_progress_v1';
+
+function loadPanelProgress(): PersistedPanelProgress {
+  const fallback: PersistedPanelProgress = {
+    lastStudyPanel: 'grammar',
+    grammarChapter: 1,
+    questionsChapter: 1,
+    questionIndex: 0
+  };
+  try {
+    const raw = localStorage.getItem(PANEL_PROGRESS_KEY);
+    if (!raw) return fallback;
+    const saved = JSON.parse(raw) as Partial<PersistedPanelProgress>;
+    return {
+      lastStudyPanel: saved.lastStudyPanel === 'questions' ? 'questions' : 'grammar',
+      grammarChapter: Number.isInteger(saved.grammarChapter) && saved.grammarChapter! >= 1 && saved.grammarChapter! <= 20 ? saved.grammarChapter! : 1,
+      questionsChapter: Number.isInteger(saved.questionsChapter) && saved.questionsChapter! >= 1 && saved.questionsChapter! <= 20 ? saved.questionsChapter! : 1,
+      questionIndex: Number.isInteger(saved.questionIndex) && saved.questionIndex! >= 0 && saved.questionIndex! < 20 ? saved.questionIndex! : 0
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 export default function App() {
   const qaActive = isQAOverrideActive();
 
+  const [savedPanelProgress] = useState<PersistedPanelProgress>(loadPanelProgress);
   const [activePanel, setActivePanel] = useState<NavPanel>(() => {
     if (qaActive) {
       if (QA_OVERRIDE.question !== null) return 'questions';
@@ -58,8 +90,27 @@ export default function App() {
     if (qaActive && QA_OVERRIDE.chapter && QA_OVERRIDE.chapter >= 1 && QA_OVERRIDE.chapter <= 20) {
       return QA_OVERRIDE.chapter;
     }
-    return 1;
+    return savedPanelProgress.grammarChapter;
   });
+  const [selectedQuestionsChapter, setSelectedQuestionsChapter] = useState<number>(() => savedPanelProgress.questionsChapter);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(() => savedPanelProgress.questionIndex);
+
+  useEffect(() => {
+    if (qaActive) return;
+    try {
+      const lastStudyPanel = activePanel === 'questions' || activePanel === 'grammar'
+        ? activePanel
+        : savedPanelProgress.lastStudyPanel;
+      localStorage.setItem(PANEL_PROGRESS_KEY, JSON.stringify({
+        lastStudyPanel,
+        grammarChapter: selectedGrammarChapter,
+        questionsChapter: selectedQuestionsChapter,
+        questionIndex: currentQuestionIndex
+      } satisfies PersistedPanelProgress));
+    } catch (error) {
+      console.warn('Could not persist panel progress:', error);
+    }
+  }, [activePanel, selectedGrammarChapter, selectedQuestionsChapter, currentQuestionIndex, qaActive, savedPanelProgress.lastStudyPanel]);
 
   // Resolve optional QA card preview
   const qaInspectedCard: PlayingCardData | null = useMemo(() => {
@@ -191,7 +242,8 @@ export default function App() {
   };
 
   const handleNavigateToQuestions = (chapterNum: number) => {
-    setSelectedGrammarChapter(chapterNum);
+    setSelectedQuestionsChapter(chapterNum);
+    setCurrentQuestionIndex(0);
     setActivePanel('questions');
   };
 
@@ -215,8 +267,13 @@ export default function App() {
         {activePanel === 'questions' && (
           <QuestionsPanel
             settings={settings}
-            activeChapterNumber={selectedGrammarChapter}
-            onSelectChapter={setSelectedGrammarChapter}
+            activeChapterNumber={selectedQuestionsChapter}
+            onSelectChapter={(chapter) => {
+              setSelectedQuestionsChapter(chapter);
+              setCurrentQuestionIndex(0);
+            }}
+            currentQuestionIndex={currentQuestionIndex}
+            onQuestionIndexChange={setCurrentQuestionIndex}
             attemptsMap={attemptsMap}
             onAttemptSaved={handleAttemptSaved}
             earnedCardIds={earnedCardIds}
