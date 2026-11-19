@@ -1,0 +1,6 @@
+{
+  "name": "VESTA — Master English Learning",
+  "description": "An offline-first, dark Victorian English learning Progressive Web Application featuring comprehensive dictionary learning, 20-chapter grammar curriculum, 400 questions, 52-card achievement system, and the JOLLY JESTER challenge.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

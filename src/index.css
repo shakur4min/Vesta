@@ -1,0 +1,184 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --font-display: 'Cinzel', 'Playfair Display', Georgia, serif;
+  --font-serif: 'Cormorant Garamond', 'Times New Roman', Garamond, serif;
+  --font-persian: 'Vazirmatn', 'Tahoma', system-ui, sans-serif;
+
+  /* Centralized Light Mode Monochromatic Victorian Tokens */
+  --vesta-bg-950: #f6f4ef;
+  --vesta-bg-900: #ebe7df;
+  --vesta-bg-850: #e2ddd3;
+  --vesta-bg-800: #d5cfc3;
+  --vesta-text-100: #141416;
+  --vesta-text-200: #222226;
+  --vesta-text-300: #38383f;
+  --vesta-text-400: #52525b;
+  --vesta-text-500: #71717a;
+  --vesta-border-850: #ddd8ce;
+  --vesta-border-800: #cfc9bc;
+  --vesta-border-700: #b8b0a0;
+}
+
+html.dark {
+  /* Centralized Dark Mode Victorian Gothic Tokens */
+  --vesta-bg-950: #09090b;
+  --vesta-bg-900: #18181b;
+  --vesta-bg-850: #202024;
+  --vesta-bg-800: #27272a;
+  --vesta-text-100: #f4f4f5;
+  --vesta-text-200: #e4e4e7;
+  --vesta-text-300: #d4d4d8;
+  --vesta-text-400: #a1a1aa;
+  --vesta-text-500: #71717a;
+  --vesta-border-850: #1f1f23;
+  --vesta-border-800: #27272a;
+  --vesta-border-700: #3f3f46;
+}
+
+/* Centralized Typography Scale — Anchored on root <html> so all rem units scale visibly */
+html,
+html[data-font-size="medium"] {
+  font-size: 16px;
+}
+
+html[data-font-size="small"] {
+  font-size: 14px;
+}
+
+html[data-font-size="large"] {
+  font-size: 18.5px;
+}
+
+body {
+  font-family: var(--font-serif);
+  background-color: var(--vesta-bg-950);
+  color: var(--vesta-text-100);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Light Monochromatic Theme Token Overrides for Victorian Surface & Ink Harmony */
+html:not(.dark) .bg-zinc-950,
+html:not(.dark) .bg-zinc-950\/95,
+html:not(.dark) .bg-zinc-950\/90,
+html:not(.dark) .bg-zinc-950\/80,
+html:not(.dark) .bg-zinc-950\/70,
+html:not(.dark) .bg-zinc-950\/60,
+html:not(.dark) .bg-zinc-950\/50 {
+  background-color: var(--vesta-bg-950);
+}
+
+html:not(.dark) .bg-zinc-900,
+html:not(.dark) .bg-zinc-900\/90,
+html:not(.dark) .bg-zinc-900\/80,
+html:not(.dark) .bg-zinc-900\/70,
+html:not(.dark) .bg-zinc-900\/60,
+html:not(.dark) .bg-zinc-900\/50,
+html:not(.dark) .bg-zinc-900\/40,
+html:not(.dark) .bg-zinc-900\/30,
+html:not(.dark) .bg-zinc-900\/20 {
+  background-color: var(--vesta-bg-900);
+}
+
+html:not(.dark) .bg-zinc-850 {
+  background-color: var(--vesta-bg-850);
+}
+
+html:not(.dark) .bg-zinc-800,
+html:not(.dark) .bg-zinc-800\/40 {
+  background-color: var(--vesta-bg-800);
+}
+
+html:not(.dark) .text-white,
+html:not(.dark) .text-zinc-100 {
+  color: var(--vesta-text-100);
+}
+
+html:not(.dark) .text-zinc-200 {
+  color: var(--vesta-text-200);
+}
+
+html:not(.dark) .text-zinc-300 {
+  color: var(--vesta-text-300);
+}
+
+html:not(.dark) .text-zinc-400 {
+  color: var(--vesta-text-400);
+}
+
+html:not(.dark) .text-zinc-500 {
+  color: var(--vesta-text-500);
+}
+
+html:not(.dark) .border-zinc-900,
+html:not(.dark) .border-zinc-900\/80,
+html:not(.dark) .border-zinc-850 {
+  border-color: var(--vesta-border-850);
+}
+
+html:not(.dark) .border-zinc-800,
+html:not(.dark) .border-zinc-800\/80,
+html:not(.dark) .border-zinc-800\/60 {
+  border-color: var(--vesta-border-800);
+}
+
+html:not(.dark) .border-zinc-700,
+html:not(.dark) .border-zinc-700\/80,
+html:not(.dark) .border-zinc-700\/60 {
+  border-color: var(--vesta-border-700);
+}
+
+/* Preserve dark ink on bright CTA buttons in Light mode */
+html:not(.dark) .bg-zinc-100.text-zinc-950,
+html:not(.dark) .bg-white.text-black {
+  background-color: #18181b;
+  color: #faf8f5;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-serif-content {
+  font-family: var(--font-serif);
+}
+
+.font-persian {
+  font-family: var(--font-persian);
+}
+
+/* Subtle Victorian Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(161, 161, 170, 0.25);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(161, 161, 170, 0.5);
+}
+
+/* Victorian Delicate Engraved Borders */
+.border-victorian {
+  border-style: solid;
+  border-image: linear-gradient(to bottom, rgba(212, 212, 216, 0.4), rgba(113, 113, 122, 0.1), rgba(212, 212, 216, 0.4)) 1;
+}
+
+/* Playing Card Shadow */
+.playing-card-shadow {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45), 0 8px 10px -6px rgba(0, 0, 0, 0.35);
+}
+
+/* Prevent accidental iOS rubber-banding on full container */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: fixed;
+}
