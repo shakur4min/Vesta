@@ -206,12 +206,12 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100 font-serif">
+    <div className="vesta-app-shell flex flex-col w-screen overflow-hidden bg-zinc-950 text-zinc-100 font-serif">
       {/* Fixed Victorian Header */}
       <Header activePanel={activePanel} isOnline={isOnline} />
 
       {/* Primary Navigation Content Viewport */}
-      <main className="flex-1 flex flex-col overflow-hidden relative">
+      <main className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
         {activePanel === 'questions' && (
           <QuestionsPanel
             settings={settings}

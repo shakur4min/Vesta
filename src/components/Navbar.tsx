@@ -18,7 +18,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePanel, onSelectPanel, unlo
   ];
 
   return (
-    <nav className="h-16 shrink-0 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-md px-2 flex items-center justify-around z-30 select-none pb-[env(safe-area-inset-bottom)]">
+    <nav className="vesta-navbar shrink-0 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-md px-2 flex items-center justify-around z-30 select-none">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = activePanel === item.id;
