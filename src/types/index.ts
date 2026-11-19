@@ -87,6 +87,7 @@ export interface GrammarQuestion {
   spellingTolerance: number;
   explanation: string;
   explanationPersian?: string;
+  openGrammarTask?: string;
 }
 
 export interface QuestionAttemptRecord {

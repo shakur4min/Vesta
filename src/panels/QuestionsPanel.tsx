@@ -244,10 +244,6 @@ export const QuestionsPanel: React.FC<QuestionsPanelProps> = ({
                 {activeQuestion.promptPersian}
               </p>
             )}
-
-            <div className="text-[11px] font-mono text-zinc-500">
-              Target concept: {activeQuestion.targetGrammarConcept}
-            </div>
           </div>
 
           {/* Elegant Victorian Typing Answer Line */}

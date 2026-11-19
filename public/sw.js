@@ -4,7 +4,7 @@
  * Created by Jackdaw
  */
 
-const CACHE_NAME = 'vesta-v1.0.1';
+const CACHE_NAME = 'vesta-v1.0.2';
 const STATIC_ASSETS = [
   './',
   './index.html',

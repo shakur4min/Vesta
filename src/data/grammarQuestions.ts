@@ -8284,16 +8284,781 @@ function substituteTemplateAnswer(templateStr: string, ans: string): string {
   return res;
 }
 
-function toActiveNonClozeQuestion(q: GrammarQuestion): GrammarQuestion {
-  let p = q.prompt.trim();
-  let pFa = (q.promptPersian || '').trim();
+interface OpenChapterTaskDef {
+  prompt: string;
+  promptPersian: string;
+  openGrammarTask: string;
+}
 
+const CHAPTER_OPEN_TASKS: Record<number, [OpenChapterTaskDef, OpenChapterTaskDef]> = {
+  1: [
+    {
+      prompt: 'Write a complete sentence in the simple present tense.',
+      promptPersian: 'یک جمله کامل به زمان حال ساده (Simple Present) بنویسید.',
+      openGrammarTask: 'simple_present'
+    },
+    {
+      prompt: 'Write a complete sentence in the present progressive (continuous) tense.',
+      promptPersian: 'یک جمله کامل به زمان حال استمراری (Present Progressive) بنویسید.',
+      openGrammarTask: 'present_progressive'
+    }
+  ],
+  2: [
+    {
+      prompt: 'Write a complete sentence in the present perfect tense (using "have" or "has" + past participle).',
+      promptPersian: 'یک جمله کامل به زمان حال کامل / ماضی نقلی (Present Perfect) بنویسید.',
+      openGrammarTask: 'present_perfect'
+    },
+    {
+      prompt: 'Write a complete sentence in the past perfect tense (using "had" + past participle).',
+      promptPersian: 'یک جمله کامل به زمان گذشته کامل / ماضی بعید (Past Perfect) بنویسید.',
+      openGrammarTask: 'past_perfect'
+    }
+  ],
+  3: [
+    {
+      prompt: 'Write a complete sentence in the future tense using "will".',
+      promptPersian: 'یک جمله کامل در زمان آینده با استفاده از «will» بنویسید.',
+      openGrammarTask: 'future_time'
+    },
+    {
+      prompt: 'Write a complete sentence in the future tense using "be going to".',
+      promptPersian: 'یک جمله کامل در زمان آینده با استفاده از «be going to» بنویسید.',
+      openGrammarTask: 'future_time'
+    }
+  ],
+  4: [
+    {
+      prompt: 'Write a complete sentence in the simple past tense.',
+      promptPersian: 'یک جمله کامل به زمان گذشته ساده (Simple Past) بنویسید.',
+      openGrammarTask: 'simple_past'
+    },
+    {
+      prompt: 'Write a complete sentence in the past progressive (continuous) tense.',
+      promptPersian: 'یک جمله کامل به زمان گذشته استمراری (Past Progressive) بنویسید.',
+      openGrammarTask: 'past_progressive'
+    }
+  ],
+  5: [
+    {
+      prompt: 'Write a complete present-tense sentence beginning with "Every" or "Each" showing singular subject-verb agreement.',
+      promptPersian: 'یک جمله کامل در زمان حال با «Every» یا «Each» بنویسید که مطابقت فاعل مفرد و فعل را نشان دهد.',
+      openGrammarTask: 'subject_verb_agreement'
+    },
+    {
+      prompt: 'Write a complete sentence using "Neither ... nor" or "Either ... or" with correct subject-verb agreement.',
+      promptPersian: 'یک جمله کامل با استفاده از «Neither ... nor» یا «Either ... or» و مطابقت درست فاعل و فعل بنویسید.',
+      openGrammarTask: 'subject_verb_agreement'
+    }
+  ],
+  6: [
+    {
+      prompt: 'Write a complete sentence using an uncountable noun (such as "advice", "information", "furniture", or "knowledge") correctly.',
+      promptPersian: 'یک جمله کامل با استفاده صحیح از یک اسم غیرقابل شمارش (مانند advice، information، furniture یا knowledge) بنویسید.',
+      openGrammarTask: 'nouns_articles'
+    },
+    {
+      prompt: 'Write a complete sentence using the indefinite article "an" before a word beginning with a vowel sound.',
+      promptPersian: 'یک جمله کامل با استفاده از حرف تعریف «an» پیش از واژه‌ای که با صدای مصوت آغاز می‌شود بنویسید.',
+      openGrammarTask: 'nouns_articles'
+    }
+  ],
+  7: [
+    {
+      prompt: 'Write a complete sentence using a reflexive pronoun (such as "myself", "himself", "herself", or "themselves").',
+      promptPersian: 'یک جمله کامل با استفاده از یک ضمیر انعکاسی (مانند myself، himself، herself یا themselves) بنویسید.',
+      openGrammarTask: 'pronouns_determiners'
+    },
+    {
+      prompt: 'Write a complete sentence using a reciprocal pronoun ("each other" or "one another").',
+      promptPersian: 'یک جمله کامل با استفاده از ضمیر متقابل («each other» یا «one another») بنویسید.',
+      openGrammarTask: 'pronouns_determiners'
+    }
+  ],
+  8: [
+    {
+      prompt: 'Write a complete sentence expressing strong obligation using "must" or "have to".',
+      promptPersian: 'یک جمله کامل برای بیان الزام با استفاده از «must» یا «have to» بنویسید.',
+      openGrammarTask: 'modals_part1'
+    },
+    {
+      prompt: 'Write a complete sentence giving advice using "should", "ought to", or "had better".',
+      promptPersian: 'یک جمله کامل برای بیان توصیه با استفاده از «should»، «ought to» یا «had better» بنویسید.',
+      openGrammarTask: 'modals_part1'
+    }
+  ],
+  9: [
+    {
+      prompt: 'Write a complete sentence expressing a logical deduction about the past using "must have" + past participle.',
+      promptPersian: 'یک جمله کامل برای بیان استنتاج منطقی در گذشته با «must have» و اسم مفعول بنویسید.',
+      openGrammarTask: 'modals_part2'
+    },
+    {
+      prompt: 'Write a complete sentence expressing past possibility or regret using "might have", "could have", or "should have".',
+      promptPersian: 'یک جمله کامل برای بیان احتمال یا حسرت در گذشته با «might have»، «could have» یا «should have» بنویسید.',
+      openGrammarTask: 'modals_part2'
+    }
+  ],
+  10: [
+    {
+      prompt: 'Write a complete sentence in the passive voice (using a form of "be" + past participle).',
+      promptPersian: 'یک جمله کامل در حالت مجهول (Passive Voice) بنویسید.',
+      openGrammarTask: 'passive_voice'
+    },
+    {
+      prompt: 'Write a complete past passive sentence describing who performed the action using "by".',
+      promptPersian: 'یک جمله کامل مجهول در زمان گذشته همراه با حرف اضافه «by» بنویسید.',
+      openGrammarTask: 'passive_voice'
+    }
+  ],
+  11: [
+    {
+      prompt: 'Write a complete sentence containing a noun clause introduced by "that", "what", or "whether".',
+      promptPersian: 'یک جمله کامل دارای بند اسمی (Noun Clause) با استفاده از «that»، «what» یا «whether» بنویسید.',
+      openGrammarTask: 'noun_clause'
+    },
+    {
+      prompt: 'Write a complete sentence containing an indirect question noun clause (for example, "I do not know where...").',
+      promptPersian: 'یک جمله کامل دارای بند اسمی پرسشی غیرمستقیم (مانند «I do not know where...») بنویسید.',
+      openGrammarTask: 'noun_clause'
+    }
+  ],
+  12: [
+    {
+      prompt: 'Write a complete sentence containing a relative (adjective) clause using "who" or "whose" to describe a person.',
+      promptPersian: 'یک جمله کامل دارای بند موصولی (Relative Clause) با استفاده از «who» یا «whose» بنویسید.',
+      openGrammarTask: 'relative_clause'
+    },
+    {
+      prompt: 'Write a complete sentence containing a relative (adjective) clause using "which" or "that" to describe an object.',
+      promptPersian: 'یک جمله کامل دارای بند موصولی با استفاده از «which» یا «that» برای توصیف یک شیء بنویسید.',
+      openGrammarTask: 'relative_clause'
+    }
+  ],
+  13: [
+    {
+      prompt: 'Write a complete sentence using a verb followed by a gerund (-ing form), such as "enjoy", "avoid", "finish", or "suggest".',
+      promptPersian: 'یک جمله کامل با فعلی که پس از آن اسم مصدر (فرم -ing) می‌آید (مانند enjoy، avoid، finish یا suggest) بنویسید.',
+      openGrammarTask: 'gerund_infinitive_1'
+    },
+    {
+      prompt: 'Write a complete sentence using a verb followed by a to-infinitive, such as "decide", "hope", "agree", or "promise".',
+      promptPersian: 'یک جمله کامل با فعلی که پس از آن مصدر با to می‌آید (مانند decide، hope، agree یا promise) بنویسید.',
+      openGrammarTask: 'gerund_infinitive_1'
+    }
+  ],
+  14: [
+    {
+      prompt: 'Write a complete sentence using a causative verb ("make", "let", or "have") followed by an object and a base verb.',
+      promptPersian: 'یک جمله کامل با استفاده از افعال سببی («make»، «let» یا «have») بنویسید.',
+      openGrammarTask: 'gerund_infinitive_2'
+    },
+    {
+      prompt: 'Write a complete sentence using a preposition followed by a gerund (-ing form).',
+      promptPersian: 'یک جمله کامل شامل یک حرف اضافه و اسم مصدر (فرم -ing) بنویسید.',
+      openGrammarTask: 'gerund_infinitive_2'
+    }
+  ],
+  15: [
+    {
+      prompt: 'Write a complete sentence using correlative conjunctions ("both ... and" or "not only ... but also") with parallel structure.',
+      promptPersian: 'یک جمله کامل با حروف ربط جفتی («both ... and» یا «not only ... but also») و ساختار موازی بنویسید.',
+      openGrammarTask: 'parallel_conjunctions'
+    },
+    {
+      prompt: 'Write a complete sentence using "either ... or" or "neither ... nor" with parallel structure.',
+      promptPersian: 'یک جمله کامل با استفاده از «either ... or» یا «neither ... nor» و رعایت ساختار موازی بنویسید.',
+      openGrammarTask: 'parallel_conjunctions'
+    }
+  ],
+  16: [
+    {
+      prompt: 'Write a complete sentence containing an adverb clause of contrast beginning with "Although" or "Even though".',
+      promptPersian: 'یک جمله کامل دارای بند قیدی تضاد با «Although» یا «Even though» بنویسید.',
+      openGrammarTask: 'adverb_clause'
+    },
+    {
+      prompt: 'Write a complete sentence containing an adverb clause of time or condition using "until", "as soon as", or "unless".',
+      promptPersian: 'یک جمله کامل دارای بند قیدی زمان یا شرط با «until»، «as soon as» یا «unless» بنویسید.',
+      openGrammarTask: 'adverb_clause'
+    }
+  ],
+  17: [
+    {
+      prompt: 'Write a complete sentence beginning with a reduced participial phrase (such as "Having finished..." or "While walking...").',
+      promptPersian: 'یک جمله کامل که با یک عبارت وصفی کوتاه‌شده (مانند «Having finished...» یا «While walking...») آغاز شود بنویسید.',
+      openGrammarTask: 'reduced_adverb_phrase'
+    },
+    {
+      prompt: 'Write a complete sentence containing a modifying phrase with "Before + -ing" or "After + -ing".',
+      promptPersian: 'یک جمله کامل دارای عبارت قیدی با «Before + -ing» یا «After + -ing» بنویسید.',
+      openGrammarTask: 'reduced_adverb_phrase'
+    }
+  ],
+  18: [
+    {
+      prompt: 'Write a complete sentence using a cause-and-effect transition such as "therefore", "consequently", or "as a result".',
+      promptPersian: 'یک جمله کامل با استفاده از قید ربطی نتیجه (مانند «therefore»، «consequently» یا «as a result») بنویسید.',
+      openGrammarTask: 'connectives'
+    },
+    {
+      prompt: 'Write a complete sentence expressing contrast using "nevertheless", "however", "despite", or "in spite of".',
+      promptPersian: 'یک جمله کامل برای بیان تضاد با «nevertheless»، «however»، «despite» یا «in spite of» بنویسید.',
+      openGrammarTask: 'connectives'
+    }
+  ],
+  19: [
+    {
+      prompt: 'Write a complete conditional sentence beginning with "If".',
+      promptPersian: 'یک جمله کامل شرطی که با «If» آغاز شود بنویسید.',
+      openGrammarTask: 'conditionals_wishes'
+    },
+    {
+      prompt: 'Write a complete sentence expressing a present or past wish beginning with "I wish".',
+      promptPersian: 'یک جمله کامل برای بیان آرزو یا حسرت که با «I wish» آغاز شود بنویسید.',
+      openGrammarTask: 'conditionals_wishes'
+    }
+  ],
+  20: [
+    {
+      prompt: 'Write a complete sentence using negative subject-verb inversion beginning with "Rarely", "Seldom", or "Never before".',
+      promptPersian: 'یک جمله کامل با وارونگی فاعل و فعل که با «Rarely»، «Seldom» یا «Never before» آغاز شود بنویسید.',
+      openGrammarTask: 'inversion_prepositions'
+    },
+    {
+      prompt: 'Write a complete sentence using a verb or adjective with its dependent preposition (such as "insist on", "fond of", or "accustomed to").',
+      promptPersian: 'یک جمله کامل با استفاده از فعل یا صفت همراه با حرف اضافه وابسته آن (مانند «insist on»، «fond of» یا «accustomed to») بنویسید.',
+      openGrammarTask: 'inversion_prepositions'
+    }
+  ]
+};
+
+// Explicit custom transformation prompts for items requiring multi-sentence combination or indirect-question conversion
+const EXPLICIT_TRANSFORMATIONS: Record<string, { prompt: string; promptFa: string }> = {
+  // Chapter 11: Noun Clauses
+  'ch-11-q3': {
+    prompt: 'Change this direct question into a noun clause beginning with "She wondered whether": "Was the manuscript authentic?"',
+    promptFa: 'این پرسش مستقیم را به یک بند اسمی (Noun Clause) تبدیل کنید که با «She wondered whether» آغاز شود: "Was the manuscript authentic?"'
+  },
+  'ch-11-q4': {
+    prompt: 'Combine these two sentences into a single sentence beginning with a "That" noun clause as the subject: "The earth revolves around the sun. This is indisputable."',
+    promptFa: 'این دو جمله را با استفاده از یک بند اسمی با «That» در جایگاه فاعل ترکیب کنید: "The earth revolves around the sun. This is indisputable."'
+  },
+  'ch-11-q5': {
+    prompt: 'Change this direct question into a noun clause beginning with "He asked me": "What time was it?"',
+    promptFa: 'این پرسش مستقیم را به یک بند اسمی تبدیل کنید که با «He asked me» آغاز شود: "What time was it?"'
+  },
+  'ch-11-q6': {
+    prompt: 'Change this statement into a subjunctive noun clause beginning with "The committee recommended that": "The proposal must be accepted."',
+    promptFa: 'این جمله را به یک بند اسمی التزامی تبدیل کنید که با «The committee recommended that» آغاز شود: "The proposal must be accepted."'
+  },
+  'ch-11-q7': {
+    prompt: 'Change this direct question into a noun clause beginning with "I cannot fathom": "Why did she resign?"',
+    promptFa: 'این پرسش مستقیم را به یک بند اسمی تبدیل کنید که با «I cannot fathom» آغاز شود: "Why did she resign?"'
+  },
+  'ch-11-q8': {
+    prompt: 'Change this direct question into a noun clause beginning with "Tell me": "Who wrote this anonymous preface?"',
+    promptFa: 'این پرسش مستقیم را به یک بند اسمی تبدیل کنید که با «Tell me» آغاز شود: "Who wrote this anonymous preface?"'
+  },
+  'ch-11-q9': {
+    prompt: 'Change this direct question into a noun clause beginning with "We debated whether": "Should we stay or leave?"',
+    promptFa: 'این پرسش مستقیم را به یک بند اسمی تبدیل کنید که با «We debated whether» آغاز شود: "Should we stay or leave?"'
+  },
+  'ch-11-q10': {
+    prompt: 'Change this sentence into a noun clause complement beginning with "His main concern was that": "The deadline might pass."',
+    promptFa: 'این جمله را به یک بند اسمی تبدیل کنید که با «His main concern was that» آغاز شود: "The deadline might pass."'
+  },
+  'ch-11-q11': {
+    prompt: 'Change this direct question into an infinitive noun phrase beginning with "I am uncertain about": "What should I do?"',
+    promptFa: 'این پرسش مستقیم را به یک عبارت اسمی مصدری تبدیل کنید که با «I am uncertain about» آغاز شود: "What should I do?"'
+  },
+  'ch-11-q12': {
+    prompt: 'Change this sentence into a subjunctive noun clause beginning with "The magistrate demanded that": "The prisoner must stand."',
+    promptFa: 'این جمله را به یک بند اسمی التزامی تبدیل کنید که با «The magistrate demanded that» آغاز شود: "The prisoner must stand."'
+  },
+  'ch-11-q13': {
+    prompt: 'Rewrite this sentence by replacing "The things which he said" with a "What" noun clause: "The things which he said surprised everyone in the room."',
+    promptFa: 'این جمله را با تبدیل عبارت ابتدایی به یک بند اسمی با «What» بازنویسی کنید: "The things which he said surprised everyone in the room."'
+  },
+  'ch-11-q14': {
+    prompt: 'Change this direct question into a noun clause beginning with "I wonder if": "Is the library open on Sunday?"',
+    promptFa: 'این پرسش مستقیم را به یک بند اسمی تبدیل کنید که با «I wonder if» آغاز شود: "Is the library open on Sunday?"'
+  },
+  'ch-11-q15': {
+    prompt: 'Change this direct question into a noun clause beginning with "She explained": "How did the typesetting apparatus operate?"',
+    promptFa: 'این پرسش مستقیم را به یک بند اسمی تبدیل کنید که با «She explained» آغاز شود: "How did the typesetting apparatus operate?"'
+  },
+  'ch-11-q16': {
+    prompt: 'Change this sentence into a subjunctive noun clause beginning with "It is crucial that": "Every citizen must vote."',
+    promptFa: 'این جمله را به یک بند اسمی التزامی تبدیل کنید که با «It is crucial that» آغاز شود: "Every citizen must vote."'
+  },
+  'ch-11-q17': {
+    prompt: 'Change this statement into a noun clause beginning with "He believes that": "Diligence yields excellence."',
+    promptFa: 'این جمله را به یک بند اسمی تبدیل کنید که با «He believes that» آغاز شود: "Diligence yields excellence."'
+  },
+  'ch-11-q18': {
+    prompt: 'Change this direct question into a noun clause beginning with "Nobody knows": "Whose handwriting is this?"',
+    promptFa: 'این پرسش مستقیم را به یک بند اسمی تبدیل کنید که با «Nobody knows» آغاز شود: "Whose handwriting is this?"'
+  },
+  'ch-11-q19': {
+    prompt: 'Change this negative command into a subjunctive noun clause beginning with "I requested that she": "Do not mention my name."',
+    promptFa: 'این جمله امری منفی را به یک بند اسمی التزامی تبدیل کنید که با «I requested that she» آغاز شود: "Do not mention my name."'
+  },
+  'ch-11-q20': {
+    prompt: 'Correct the subject-verb agreement error in this noun clause sentence and rewrite it: "Whoever arrive first shall receive the book."',
+    promptFa: 'خطای مطابقت فاعل و فعل در این بند اسمی را اصلاح کرده و جمله کامل را بازنویسی کنید: "Whoever arrive first shall receive the book."'
+  }
+};
+
+function buildContrastingToken(chNum: number, cue: string, ans: string): { token: string; actionEn: string; actionFa: string } {
+  const cleanCue = cue.trim();
+  const cleanAns = ans.trim();
+  const ansLower = cleanAns.toLowerCase();
+  const cueLower = cleanCue.toLowerCase();
+
+  // Chapter 5: Subject-Verb Agreement -> flip singular/plural verb
+  if (chNum === 5) {
+    const agreementFlip: Record<string, string> = {
+      is: 'are',
+      are: 'is',
+      was: 'were',
+      were: 'was',
+      has: 'have',
+      have: 'has',
+      lives: 'live',
+      attend: 'attends',
+      stands: 'stand'
+    };
+    return {
+      token: agreementFlip[ansLower] || (ansLower.endsWith('s') ? ansLower.slice(0, -1) : `${cleanAns}s`),
+      actionEn: 'Correct the subject-verb agreement error in this sentence and rewrite it',
+      actionFa: 'خطای مطابقت فاعل و فعل را در این جمله اصلاح کرده و جمله صحیح را بنویسید'
+    };
+  }
+
+  // Chapter 6: Nouns & Articles
+  if (chNum === 6) {
+    const nounArticleFlip: Record<string, string> = {
+      advice: 'an advice',
+      an: 'a',
+      ø: 'The',
+      some: 'an',
+      furniture: 'furnitures',
+      the: 'a',
+      linguist: 'linguists',
+      criteria: 'criterions',
+      is: 'are',
+      great: 'a great',
+      'passers-by': 'passer-bys',
+      a: 'an',
+      wolves: 'wolfs',
+      phenomena: 'phenomenon',
+      freedom: 'the freedom',
+      are: 'is',
+      little: 'few'
+    };
+    return {
+      token: nounArticleFlip[ansLower] || 'the',
+      actionEn: 'Correct the noun, plural, or article error in this sentence and rewrite it',
+      actionFa: 'خطای اسم، جمع یا حرف تعریف را در این جمله اصلاح کرده و جمله کامل را بنویسید'
+    };
+  }
+
+  // Chapter 7: Pronouns & Determiners
+  if (chNum === 7) {
+    const pronounFlip: Record<string, string> = {
+      himself: 'him',
+      'his or her': 'his',
+      'each other': 'themselves',
+      its: "it's",
+      who: 'which',
+      me: 'I',
+      is: 'are',
+      "one's": 'their',
+      whose: "who's",
+      herself: 'her',
+      'one another': 'ourselves',
+      deserved: 'deserve',
+      their: 'it',
+      none: 'neither',
+      he: 'him',
+      his: 'our'
+    };
+    return {
+      token: pronounFlip[ansLower] || 'them',
+      actionEn: 'Correct the pronoun or determiner error in this sentence and rewrite it',
+      actionFa: 'خطای ضمیر یا مشخص‌کننده را در این جمله اصلاح کرده و جمله کامل را بنویسید'
+    };
+  }
+
+  // Chapter 10: Passive Voice -> put active/unpassivized verb in source sentence
+  if (chNum === 10) {
+    const activeFlip: Record<string, string> = {
+      'was written': 'wrote',
+      'are delivered': 'delivers',
+      'is currently being prepared': 'currently prepares',
+      'was proclaimed': 'proclaimed',
+      'be corrected': 'correct',
+      'had been destroyed': 'destroyed',
+      believed: 'believe',
+      'are locked': 'locks',
+      'was translated': 'translated',
+      'be taken': 'take',
+      'was rejuvenated': 'rejuvenated',
+      climbing: 'climb',
+      told: 'tell',
+      'been conquered': 'conquered',
+      given: 'gave',
+      'to belong': 'belonging',
+      'will be built': 'builds',
+      received: 'receive',
+      'was compiled': 'compiled',
+      'be concealed': 'conceal'
+    };
+    return {
+      token: activeFlip[ansLower] || cleanCue,
+      actionEn: 'Change the verb in this sentence into the correct passive voice construction and rewrite the sentence',
+      actionFa: 'فعل این جمله را به ساختار مجهول (Passive Voice) صحیح تبدیل کرده و جمله کامل را بنویسید'
+    };
+  }
+
+  // Chapter 12: Adjective (Relative) Clauses -> put wrong relative pronoun in source sentence
+  if (chNum === 12) {
+    const relativeFlip: Record<string, string> = {
+      who: 'which',
+      which: 'who',
+      whose: 'who',
+      where: 'which',
+      whom: 'which',
+      why: 'where',
+      that: 'who',
+      when: 'where',
+      'with which': 'which'
+    };
+    return {
+      token: relativeFlip[ansLower] || 'what',
+      actionEn: 'Correct the relative pronoun or relative clause error in this sentence and rewrite it',
+      actionFa: 'خطای ضمیر موصولی یا بند موصولی را در این جمله اصلاح کرده و جمله کامل را بنویسید'
+    };
+  }
+
+  // Chapter 13 & 14: Gerunds and Infinitives
+  if (chNum === 13 || chNum === 14) {
+    if (ansLower.endsWith('ing')) {
+      const base = cueLower !== ansLower ? cleanCue : cleanAns.replace(/ing$/, '');
+      return {
+        token: `to ${base}`,
+        actionEn: 'Correct the gerund or infinitive error in this sentence and rewrite it',
+        actionFa: 'خطای اسم مصدر یا مصدر را در این جمله اصلاح کرده و جمله کامل را بنویسید'
+      };
+    }
+    if (ansLower.startsWith('to ')) {
+      const base = cleanAns.slice(3);
+      return {
+        token: `${base}ing`,
+        actionEn: 'Correct the gerund or infinitive error in this sentence and rewrite it',
+        actionFa: 'خطای اسم مصدر یا مصدر را در این جمله اصلاح کرده و جمله کامل را بنویسید'
+      };
+    }
+    if (ansLower === 'altered') {
+      return {
+        token: 'to alter',
+        actionEn: 'Correct the causative participle error in this sentence and rewrite it',
+        actionFa: 'خطای ساختار سببی را در این جمله اصلاح کرده و جمله کامل را بنویسید'
+      };
+    }
+    return {
+      token: `to ${cleanAns}`,
+      actionEn: 'Correct the causative or bare infinitive error in this sentence and rewrite it',
+      actionFa: 'خطای مصدر بدون to یا ساختار سببی را در این جمله اصلاح کرده و جمله کامل را بنویسید'
+    };
+  }
+
+  // Chapter 15: Coordinating Conjunctions & Parallel Structure
+  if (chNum === 15) {
+    const parallelFlip: Record<string, string> = {
+      and: 'or',
+      but: 'and',
+      nor: 'or',
+      or: 'nor',
+      writing: 'to write',
+      yet: 'so',
+      so: 'for',
+      for: 'so',
+      intelligently: 'intelligent',
+      exhausting: 'exhaust',
+      in: 'at',
+      'but also': 'and',
+      lucidity: 'lucid',
+      sat: 'sits',
+      an: 'a'
+    };
+    return {
+      token: parallelFlip[ansLower] || 'or',
+      actionEn: 'Correct the parallel structure or conjunction error in this sentence and rewrite it',
+      actionFa: 'خطای ساختار موازی یا حرف ربط را در این جمله اصلاح کرده و جمله کامل را بنویسید'
+    };
+  }
+
+  // Chapter 16: Adverb Clauses
+  if (chNum === 16) {
+    const adverbFlip: Record<string, string> = {
+      although: 'Because',
+      until: 'while',
+      because: 'Although',
+      that: 'as',
+      'as soon as': 'Until',
+      arrived: 'arrives',
+      unless: 'if',
+      since: 'Although',
+      could: 'can',
+      if: 'though',
+      whereas: 'Because',
+      when: 'than',
+      go: 'went',
+      as: 'that',
+      'had seen': 'sees',
+      than: 'when'
+    };
+    return {
+      token: adverbFlip[ansLower] || 'when',
+      actionEn: 'Correct the adverb clause connective or tense error in this sentence and rewrite it',
+      actionFa: 'خطای حرف ربط یا زمان فعل در بند قیدی این جمله را اصلاح کرده و جمله کامل را بنویسید'
+    };
+  }
+
+  // Chapter 17: Reduction of Adverb Clauses to Modifying Phrases
+  if (chNum === 17) {
+    const reductionFlip: Record<string, string> = {
+      'having finished': 'Finish',
+      walking: 'walked',
+      being: 'Be',
+      publishing: 'published',
+      hearing: 'heard',
+      examined: 'examining',
+      transcribing: 'transcribed',
+      shocked: 'Shocking',
+      consulting: 'consulted',
+      knowing: 'Known',
+      seen: 'Seeing',
+      borne: 'bearing',
+      asked: 'asking',
+      lacking: 'Lacked',
+      working: 'worked',
+      frightened: 'Frightening',
+      spent: 'spending',
+      entering: 'entered',
+      exhausted: 'Exhausting'
+    };
+    return {
+      token: reductionFlip[ansLower] || 'to do',
+      actionEn: 'Correct the participial modifying phrase in this sentence and rewrite it',
+      actionFa: 'عبارت وصفی کوتاه‌شده در این جمله را به شکل صحیح تبدیل کرده و جمله کامل را بنویسید'
+    };
+  }
+
+  // Chapter 18: Connectives
+  if (chNum === 18) {
+    const connectiveFlip: Record<string, string> = {
+      therefore: 'however',
+      nevertheless: 'therefore',
+      'in spite of': 'although',
+      consequently: 'nevertheless',
+      otherwise: 'furthermore',
+      furthermore: 'otherwise',
+      despite: 'Although',
+      'on the other hand': 'Therefore',
+      'because of': 'because',
+      moreover: 'otherwise',
+      'in contrast to': 'Although',
+      nonetheless: 'consequently',
+      however: 'therefore',
+      'due to': 'because',
+      'even so': 'therefore',
+      'all the same': 'consequently',
+      'as a result': 'nevertheless',
+      yet: 'so',
+      likewise: 'otherwise'
+    };
+    return {
+      token: connectiveFlip[ansLower] || 'however',
+      actionEn: 'Replace the incorrect connective in this sentence with the logically and grammatically required connective and rewrite it',
+      actionFa: 'کلمه ربط نادرست در این جمله را با کلمه ربط منطقی و دستوری صحیح جایگزین کرده و جمله کامل را بنویسید'
+    };
+  }
+
+  // Chapter 19: Conditionals and Wishes
+  if (chNum === 19) {
+    const conditionalFlip: Record<string, string> = {
+      were: 'am',
+      'would have found': 'will find',
+      knew: 'know',
+      'had consulted': 'consult',
+      boils: 'boiled',
+      hurry: 'will hurry',
+      'had studied': 'studies',
+      rains: 'will rain',
+      known: 'knew',
+      'to be': 'being',
+      'had listened': 'listen',
+      had: 'have',
+      permits: 'will permit',
+      encounter: 'encountered',
+      require: 'required',
+      'would stop': 'stops',
+      'were not': 'is not',
+      'would not have missed': 'will not miss',
+      'would have been averted': 'will be averted'
+    };
+    return {
+      token: conditionalFlip[ansLower] || 'will be',
+      actionEn: 'Transform the conditional or wish verb in this sentence into its grammatically required form and rewrite the sentence',
+      actionFa: 'فعل شرطی یا آرزویی این جمله را به ساختار دستوری صحیح تبدیل کرده و جمله کامل را بنویسید'
+    };
+  }
+
+  // Chapter 20: Subject-Verb Inversion and Prepositions
+  if (chNum === 20) {
+    const inversionPrepositionFlip: Record<string, string> = {
+      'have we seen': 'we have seen',
+      'does he speak': 'he speaks',
+      'are visitors permitted': 'visitors are permitted',
+      'did he translate': 'he translated',
+      when: 'than',
+      'did they suspect': 'they suspected',
+      than: 'when',
+      'did he finish': 'he finished',
+      'can one master': 'one can master',
+      walked: 'was walking',
+      comes: 'come',
+      on: 'in',
+      to: 'with',
+      of: 'for',
+      'have I witnessed': 'I have witnessed',
+      stood: 'standing'
+    };
+    return {
+      token: inversionPrepositionFlip[ansLower] || 'in',
+      actionEn: 'Apply subject-verb inversion or correct the dependent preposition in this sentence and rewrite it',
+      actionFa: 'وارونگی فاعل و فعل یا حرف اضافه وابسته صحیح را در این جمله اعمال کرده و جمله کامل را بنویسید'
+    };
+  }
+
+  // Chapters 1, 2, 3, 4, 8, 9 (Verb Tenses & Modals)
+  if (cueLower.startsWith('not ')) {
+    const positiveVerb = cleanCue.slice(4);
+    return {
+      token: positiveVerb === 'be' ? 'was' : `${positiveVerb}s`,
+      actionEn: `Change this sentence into the required negative form (${qExplanationTarget(ansLower)}) and rewrite it`,
+      actionFa: 'این جمله را به شکل منفی در زمان/ساختار دستوری مورد نظر تبدیل کرده و بازنویسی کنید'
+    };
+  }
+
+  if (cueLower.startsWith('you ')) {
+    const mainV = cleanCue.slice(4);
+    return {
+      token: `you ${mainV}`,
+      actionEn: 'Change this clause into a properly formed question in the required tense and rewrite the full question',
+      actionFa: 'این جمله را به یک پرسش کامل با ساختار زمانی صحیح تبدیل کرده و بنویسید'
+    };
+  }
+
+  // If cue is identical to ans (e.g. "preserve", "think", "attend", "sell", "clarify", "ought to", "might have", etc.)
+  if (cueLower === ansLower) {
+    const tenseShift: Record<string, string> = {
+      think: 'am thinking',
+      preserve: 'preserved',
+      is: 'were',
+      'have to': 'had to',
+      'ought to': 'can',
+      'must not': 'need not',
+      sell: 'sold',
+      'had better not': 'would rather not',
+      must: 'can',
+      clarify: 'clarified',
+      'might have': 'can',
+      'should have': 'must',
+      'could he have gone': 'he went',
+      'must have taken': 'took',
+      'would rather': 'had better',
+      'might not have': 'must not',
+      'had better have': 'would rather',
+      'must have lived': 'lives',
+      'could have delivered': 'delivered',
+      'ought to have': 'can have',
+      'may be': 'was',
+      'must not have seen': 'did not see',
+      'would rather not': 'had better',
+      'must have encountered': 'encounters',
+      'would have helped': 'will help',
+      'must have been': 'is'
+    };
+    return {
+      token: tenseShift[ansLower] || `${cleanAns}ed`,
+      actionEn: `Transform the verb or modal structure in this sentence into the required form (${qExplanationTarget(ansLower)}) and rewrite the sentence`,
+      actionFa: 'زمان فعل یا ساختار وجهی این جمله را به شکل دستوری صحیح تبدیل کرده و جمله کامل را بنویسید'
+    };
+  }
+
+  // Otherwise cue is the base verb and ans is the conjugated target tense (e.g. revolve -> revolves, chime -> is chiming, etc.)
+  // Put a contrasting tense in the source sentence so it is a complete sentence in a different tense!
+  let contrastingVerb = `${cleanCue}ed`;
+  if (ansLower.endsWith('ed') || ansLower.startsWith('had ') || ansLower.startsWith('was ') || ansLower.startsWith('were ') || ansLower === 'struck') {
+    // Target is past/perfect -> put present tense in source sentence
+    contrastingVerb = cleanCue === 'be' ? 'is' : (cleanCue.endsWith('e') ? `${cleanCue}s` : `${cleanCue}s`);
+  } else if (cleanCue === 'be') {
+    contrastingVerb = 'was';
+  } else if (cleanCue.endsWith('e')) {
+    contrastingVerb = `${cleanCue}d`;
+  }
+
+  return {
+    token: contrastingVerb,
+    actionEn: `Change the verb tense in this sentence to the required form (${qExplanationTarget(ansLower)}) and rewrite the complete sentence`,
+    actionFa: 'زمان فعل در این جمله را به ساختار زمانی مورد نظر تغییر داده و جمله کامل را بازنویسی کنید'
+  };
+}
+
+function qExplanationTarget(ansLower: string): string {
+  if (ansLower.startsWith('will have ')) return 'future perfect';
+  if (ansLower.startsWith('will be ') && ansLower.endsWith('ing')) return 'future progressive';
+  if (ansLower.startsWith('will ') || ansLower.includes('going to')) return 'future tense';
+  if (ansLower.startsWith('had been ') && ansLower.endsWith('ing')) return 'past perfect progressive';
+  if (ansLower.startsWith('had ')) return 'past perfect';
+  if ((ansLower.startsWith('has been ') || ansLower.startsWith('have been ')) && ansLower.endsWith('ing')) return 'present perfect progressive';
+  if (ansLower.startsWith('has ') || ansLower.startsWith('have ')) return 'present perfect';
+  if ((ansLower.startsWith('was ') || ansLower.startsWith('were ')) && ansLower.endsWith('ing')) return 'past progressive';
+  if ((ansLower.startsWith('is ') || ansLower.startsWith('are ') || ansLower.startsWith('am ')) && ansLower.endsWith('ing')) return 'present progressive';
+  return 'appropriate chapter tense or modal form';
+}
+
+function toActiveNonClozeQuestion(q: GrammarQuestion): GrammarQuestion {
+  // 1. Questions 1 and 2 of EVERY chapter are open sentence-writing prompts for that chapter
+  if (q.questionNumber === 1 || q.questionNumber === 2) {
+    const openDef = CHAPTER_OPEN_TASKS[q.chapterNumber]?.[q.questionNumber - 1];
+    if (openDef) {
+      let rawP = q.prompt.trim();
+      const sampleFull = q.acceptedAnswers.map(a => substituteTemplateAnswer(rawP, a));
+      return {
+        ...q,
+        prompt: openDef.prompt,
+        promptPersian: openDef.promptPersian,
+        openGrammarTask: openDef.openGrammarTask,
+        acceptedAnswers: sampleFull,
+        alternativeAnswers: []
+      };
+    }
+  }
+
+  let p = q.prompt.trim();
+
+  // 2. Check explicit special items
   if (p.includes("Rewrite using 'ought'")) {
     return {
       ...q,
-      prompt: 'Rewrite the following sentence using the modal verb "ought" to express moral obligation: "You should apologize."',
-      promptPersian: 'جمله زیر را با استفاده از فعل وجهی «ought» برای بیان وظیفه اخلاقی بازنویسی کنید: «تو باید عذرخواهی کنی.»',
-      acceptedAnswers: ['You ought to apologize.', 'You ought to apologize', 'ought to'],
+      prompt: 'Change this sentence to use the modal verb "ought" instead of "should": "You should apologize."',
+      promptPersian: 'این جمله را با استفاده از فعل وجهی «ought» به جای «should» بازنویسی کنید: "You should apologize."',
+      acceptedAnswers: ['You ought to apologize.', 'You ought to apologize'],
       alternativeAnswers: ['You ought to apologise.', 'You ought to apologise']
     };
   }
@@ -8301,9 +9066,9 @@ function toActiveNonClozeQuestion(q: GrammarQuestion): GrammarQuestion {
   if (p.includes('Change to passive:')) {
     return {
       ...q,
-      prompt: 'Transform the following active sentence into the passive voice: "Haim compiled the dictionary."',
-      promptPersian: 'جمله معلوم زیر را به حالت مجهول تبدیل کنید: «حییم فرهنگ لغت را گردآوری کرد.»',
-      acceptedAnswers: ['The dictionary was compiled by Haim.', 'The dictionary was compiled by Haim', 'was compiled'],
+      prompt: 'Change this active sentence into the passive voice: "Haim compiled the dictionary."',
+      promptPersian: 'این جمله معلوم را به حالت مجهول (Passive Voice) تبدیل کنید: "Haim compiled the dictionary."',
+      acceptedAnswers: ['The dictionary was compiled by Haim.', 'The dictionary was compiled by Haim'],
       alternativeAnswers: []
     };
   }
@@ -8311,9 +9076,9 @@ function toActiveNonClozeQuestion(q: GrammarQuestion): GrammarQuestion {
   if (p.includes('Avoid the dangling modifier:')) {
     return {
       ...q,
-      prompt: 'Rewrite the sentence to eliminate the dangling modifier by selecting and integrating the grammatically valid main clause: "Walking through the hall, [the bell rang / he heard the bell]."',
-      promptPersian: 'جمله زیر را با حذف توصیف‌گر معلق و انتخاب بند اصلی درست بازنویسی کنید: «در حال عبور از سالن، [زنگ به صدا درآمد / او صدای زنگ را شنید].»',
-      acceptedAnswers: ['Walking through the hall, he heard the bell.', 'Walking through the hall, he heard the bell', 'he heard the bell'],
+      prompt: 'Correct the dangling modifier in this sentence so that the person walking is the subject of the main clause ("he heard the bell"): "Walking through the hall, the bell rang."',
+      promptPersian: 'توصیف‌گر معلق را در این جمله اصلاح کنید به طوری که شخص قدم‌زننده فاعل بند اصلی باشد: "Walking through the hall, the bell rang."',
+      acceptedAnswers: ['Walking through the hall, he heard the bell.', 'Walking through the hall, he heard the bell'],
       alternativeAnswers: []
     };
   }
@@ -8335,36 +9100,12 @@ function toActiveNonClozeQuestion(q: GrammarQuestion): GrammarQuestion {
     }
   }
 
-  const faPrefixes = [
-    'فعل را کامل کنید:',
-    'جمله را کامل کنید:',
-    'کامل کنید:',
-    'شکل صحیح را بنویسید:',
-    'واژه صحیح را انتخاب کنید:'
-  ];
-  for (const fp of faPrefixes) {
-    if (pFa.startsWith(fp)) {
-      pFa = pFa.slice(fp.length).trim();
-      if (pFa.startsWith('«') && pFa.endsWith('»')) {
-        pFa = pFa.slice(1, -1).trim();
-      }
-    }
-  }
-  pFa = pFa.replace(/\.\.\./g, '').replace(/_+/g, '').trim();
-
+  // Compute full target sentences for acceptedAnswers and alternativeAnswers
   const fullAccepted: string[] = [];
   for (const ans of q.acceptedAnswers) {
     const fullSent = substituteTemplateAnswer(p, ans);
     if (fullSent && !fullAccepted.includes(fullSent)) {
       fullAccepted.push(fullSent);
-    }
-    if (!fullAccepted.includes(ans)) {
-      fullAccepted.push(ans);
-    }
-    if (ans.toLowerCase() === 'ø') {
-      for (const extra of ['no article', 'zero article']) {
-        if (!fullAccepted.includes(extra)) fullAccepted.push(extra);
-      }
     }
   }
 
@@ -8374,57 +9115,71 @@ function toActiveNonClozeQuestion(q: GrammarQuestion): GrammarQuestion {
     if (fullSent && !fullAlt.includes(fullSent) && !fullAccepted.includes(fullSent)) {
       fullAlt.push(fullSent);
     }
-    if (!fullAlt.includes(ans) && !fullAccepted.includes(ans)) {
-      fullAlt.push(ans);
-    }
   }
 
-  const hasSlashOptions = /___\s*\([^)]*\/[^)]*\)/.test(p);
-  const hasParentheticalCue = /___\s*\(([^)]+)\)/.test(p);
-
-  const bracketedSentence = hasParentheticalCue
-    ? p.replace(/___\s*\(([^)]+)\)/g, '[$1]')
-    : p.replace(/___/g, '[connective]');
-
-  let taskInstruction = '';
-  let taskFa = '';
-
-  if (hasSlashOptions) {
-    if (bracketedSentence.includes('Ø')) {
-      taskInstruction = 'Rewrite the sentence applying the correct article rule (or zero article) for the bracketed expression';
-      taskFa = 'با اعمال قاعده درست حرف تعریف (یا بدون حرف تعریف)، جمله زیر را بازنویسی کنید';
-    } else {
-      taskInstruction = 'Rewrite the sentence by selecting and applying the grammatically valid structure from the bracketed forms';
-      taskFa = 'با انتخاب و به‌کارگیری ساختار دستوری صحیح از میان گزینه‌های داخل کروشه، جمله را بازنویسی کنید';
-    }
-  } else if (q.chapterNumber === 10) {
-    taskInstruction = 'Transform the bracketed verb into the required passive voice construction and rewrite the sentence (or target verb phrase)';
-    taskFa = 'فعل داخل کروشه را به ساختار مجهول مناسب تبدیل کرده و جمله (یا عبارت فعلی) را بازنویسی کنید';
-  } else if (q.chapterNumber === 17) {
-    taskInstruction = 'Reduce or transform the bracketed modifier into the correct participial form and rewrite the sentence (or target form)';
-    taskFa = 'عبارت داخل کروشه را به شکل وجه وصفی کوتاه‌شده تبدیل کرده و جمله را بازنویسی کنید';
-  } else if (q.chapterNumber === 19) {
-    taskInstruction = 'Construct the required conditional or wish verb form for the bracketed expression and rewrite the sentence (or target clause)';
-    taskFa = 'ساختار شرطی یا آرزویی مناسب را برای عبارت داخل کروشه بسازید و جمله را بازنویسی کنید';
-  } else if (q.chapterNumber === 20) {
-    taskInstruction = 'Apply subject-verb inversion or the required dependent preposition to the bracketed expression and rewrite the sentence (or target structure)';
-    taskFa = 'وارونگی فاعل و فعل یا حرف اضافه وابسته مناسب را بر عبارت داخل کروشه اعمال کرده و جمله را بازنویسی کنید';
-  } else if (!hasParentheticalCue) {
-    taskInstruction = 'Combine the clauses by supplying the required correlative or subordinating connective in place of [connective] and rewrite the sentence';
-    taskFa = 'بندهای جمله زیر را با قرار دادن حرف ربط همپایه یا وابسته مناسب به جای [connective] ترکیب و بازنویسی کنید';
-  } else {
-    taskInstruction = 'Rewrite the sentence by transforming the bracketed expression into its grammatically required form (full sentence or target structure)';
-    taskFa = 'جمله زیر را با تبدیل عبارت داخل کروشه به شکل دستوری صحیح آن بازنویسی کنید';
+  // Check if there is an explicit multi-clause/noun-clause transformation for this question ID
+  const explicitTransform = EXPLICIT_TRANSFORMATIONS[q.id];
+  if (explicitTransform) {
+    return {
+      ...q,
+      prompt: explicitTransform.prompt,
+      promptPersian: explicitTransform.promptFa,
+      acceptedAnswers: fullAccepted,
+      alternativeAnswers: fullAlt
+    };
   }
+
+  // 3. Check if the raw template had slash options: ___ (optA / optB)
+  const slashMatch = p.match(/___\s*\(([^)]*\/[^)]*)\)/);
+  if (slashMatch) {
+    const options = slashMatch[1].split('/').map(s => s.trim());
+    const acceptedLowerSet = new Set(
+      [...q.acceptedAnswers, ...(q.alternativeAnswers || [])].map(a => a.trim().toLowerCase())
+    );
+    let distractor = options.find(opt => !acceptedLowerSet.has(opt.toLowerCase()) && opt !== 'Ø');
+    if (!distractor || distractor === 'Ø') {
+      const candidates = ["it's", 'who', 'our', 'because', 'which', 'The', 'in', 'to'];
+      distractor = candidates.find(c => !acceptedLowerSet.has(c.toLowerCase())) || 'our';
+    }
+
+    const sourceSentence = substituteTemplateAnswer(p, distractor);
+    return {
+      ...q,
+      prompt: `Correct the grammatical error in this sentence and rewrite the complete sentence: "${sourceSentence}"`,
+      promptPersian: `خطای دستوری موجود در این جمله را اصلاح کرده و جمله کامل و صحیح را بنویسید: "${sourceSentence}"`,
+      acceptedAnswers: fullAccepted,
+      alternativeAnswers: fullAlt
+    };
+  }
+
+  // 4. Single parenthetical cue ___ (cue) or bare ___
+  const cueMatch = p.match(/___\s*\(([^)]+)\)/);
+  const cue = cueMatch ? cueMatch[1].trim() : 'and';
+  const primaryAns = q.acceptedAnswers[0] || '';
+  const allAnsLowerSet = new Set(
+    [...q.acceptedAnswers, ...(q.alternativeAnswers || [])].map(a => a.trim().toLowerCase())
+  );
+
+  const contrast = buildContrastingToken(q.chapterNumber, cue, primaryAns);
+  let chosenToken = contrast.token;
+  if (allAnsLowerSet.has(chosenToken.trim().toLowerCase())) {
+    const fallbacks = cue.toLowerCase() === 'be'
+      ? ['were', 'am', 'being', 'been']
+      : [`to ${cue}`, `${cue}ing`, `${cue}ed`, 'was'];
+    chosenToken = fallbacks.find(fb => !allAnsLowerSet.has(fb.toLowerCase())) || 'were';
+  }
+  const sourceSentence = substituteTemplateAnswer(p, chosenToken);
 
   return {
     ...q,
-    prompt: `${taskInstruction}: "${bracketedSentence.replace(/_+/g, '')}"`,
-    promptPersian: pFa ? `${taskFa}: «${pFa}»` : undefined,
+    prompt: `${contrast.actionEn}: "${sourceSentence}"`,
+    promptPersian: `${contrast.actionFa}: "${sourceSentence}"`,
     acceptedAnswers: fullAccepted,
     alternativeAnswers: fullAlt
   };
 }
 
 export const GRAMMAR_QUESTIONS: GrammarQuestion[] = RAW_GRAMMAR_QUESTIONS.map(toActiveNonClozeQuestion);
+
+
 

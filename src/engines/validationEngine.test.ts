@@ -34,7 +34,7 @@ test('compareWithSpellingTolerance allows minor content typo but strictly reject
   assert.equal(grammarMismatch.match, false);
 });
 
-test('all 400 GRAMMAR_QUESTIONS contain zero fill-in-the-blank underscores (___) and span 20 chapters x 20 questions', () => {
+test('all 400 GRAMMAR_QUESTIONS contain zero blanks (___), zero brackets ([]), and never write the answer as the source sentence', () => {
   assert.equal(GRAMMAR_QUESTIONS.length, 400, 'Must have exactly 400 questions');
 
   const countsByChapter: Record<number, number> = {};
@@ -44,14 +44,29 @@ test('all 400 GRAMMAR_QUESTIONS contain zero fill-in-the-blank underscores (___)
     assert.equal(
       q.prompt.includes('___'),
       false,
-      `Question ${q.id} prompt still contains fill-in-the-blank underscores: ${q.prompt}`
+      `Question ${q.id} prompt contains underscores: ${q.prompt}`
     );
     assert.equal(
-      (q.promptPersian || '').includes('___'),
+      q.prompt.includes('[') || q.prompt.includes(']'),
       false,
-      `Question ${q.id} Persian prompt still contains fill-in-the-blank underscores`
+      `Question ${q.id} prompt contains brackets: ${q.prompt}`
     );
     assert.ok(q.acceptedAnswers.length >= 1, `Question ${q.id} must have at least one accepted answer`);
+
+    // For transformation questions (Q3-Q20), verify the quoted source sentence is strictly different from every accepted answer
+    if (q.questionNumber >= 3) {
+      const quotedMatch = q.prompt.match(/:\s*"([^"]+)"$/);
+      if (quotedMatch) {
+        const sourceNorm = normalizeText(quotedMatch[1]);
+        for (const acc of q.acceptedAnswers) {
+          assert.notEqual(
+            sourceNorm,
+            normalizeText(acc),
+            `Question ${q.id} source sentence "${quotedMatch[1]}" must not equal accepted answer "${acc}"`
+          );
+        }
+      }
+    }
 
     // Check difficulty progression
     if (q.questionNumber <= 5) assert.equal(q.difficulty, 'easy');
@@ -65,25 +80,25 @@ test('all 400 GRAMMAR_QUESTIONS contain zero fill-in-the-blank underscores (___)
   }
 });
 
-test('validateAnswer accepts both full transformed sentence and target grammatical form, and never leaks answer on error', () => {
-  const q1 = GRAMMAR_QUESTIONS[0]; // ch-01-q1: The earth [revolve] around the sun.
+test('validateAnswer accepts student-written sentences on open chapter tasks and full transformed sentences on conversion tasks', () => {
+  const ch1q1 = GRAMMAR_QUESTIONS[0]; // Write a complete sentence in the simple present tense.
+  assert.equal(validateAnswer('She studies English grammar every day.', ch1q1, 'en').isCorrect, true);
+  assert.equal(validateAnswer('I read ancient books in the library.', ch1q1, 'en').isCorrect, true);
+  assert.equal(validateAnswer('She studied English yesterday.', ch1q1, 'en').isCorrect, false);
 
-  // Full sentence submission
-  const fullSentRes = validateAnswer('The earth revolves around the sun.', q1, 'en');
+  const ch1q3 = GRAMMAR_QUESTIONS[2]; // Transformation task -> Yesterday, the curator discovered an obscure folio.
+  const fullSentRes = validateAnswer('Yesterday, the curator discovered an obscure folio.', ch1q3, 'en');
   assert.equal(fullSentRes.isCorrect, true, 'Full transformed sentence must be accepted');
 
-  // Target verb form submission
-  const targetRes = validateAnswer('revolves', q1, 'en');
-  assert.equal(targetRes.isCorrect, true, 'Target grammatical form must be accepted');
-
   // Wrong answer must fail and must NOT leak the expected answer
-  const wrongRes = validateAnswer('revolved', q1, 'en');
+  const wrongRes = validateAnswer('Yesterday, the curator discovers an obscure folio.', ch1q3, 'en');
   assert.equal(wrongRes.isCorrect, false);
   assert.equal(wrongRes.requiresRevision, true);
   assert.equal(
-    wrongRes.feedback.toLowerCase().includes('revolves'),
+    wrongRes.feedback.toLowerCase().includes('discovered'),
     false,
     'Wrong-answer feedback must never reveal the expected answer'
   );
 });
+
 
