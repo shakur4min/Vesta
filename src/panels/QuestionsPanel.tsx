@@ -24,7 +24,6 @@ interface QuestionsPanelProps {
   onAttemptSaved: (record: QuestionAttemptRecord) => void;
   earnedCardIds: string[];
   onCardEarned: (cardId: string) => void;
-  initialQuestionNumber?: number | null;
   currentQuestionIndex: number;
   onQuestionIndexChange: (index: number) => void;
 }
@@ -37,7 +36,6 @@ export const QuestionsPanel: React.FC<QuestionsPanelProps> = ({
   onAttemptSaved,
   earnedCardIds,
   onCardEarned,
-  initialQuestionNumber = null,
   currentQuestionIndex,
   onQuestionIndexChange
 }) => {
