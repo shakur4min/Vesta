@@ -36,6 +36,7 @@ type PersistedPanelProgress = {
   grammarChapter: number;
   questionsChapter: number;
   questionIndex: number;
+  grammarLessonOpen: boolean;
 };
 
 const PANEL_PROGRESS_KEY = 'vesta_panel_progress_v1';
@@ -45,7 +46,8 @@ function loadPanelProgress(): PersistedPanelProgress {
     lastStudyPanel: 'grammar',
     grammarChapter: 1,
     questionsChapter: 1,
-    questionIndex: 0
+    questionIndex: 0,
+    grammarLessonOpen: false
   };
   try {
     const raw = localStorage.getItem(PANEL_PROGRESS_KEY);
@@ -55,7 +57,8 @@ function loadPanelProgress(): PersistedPanelProgress {
       lastStudyPanel: saved.lastStudyPanel === 'questions' ? 'questions' : 'grammar',
       grammarChapter: Number.isInteger(saved.grammarChapter) && saved.grammarChapter! >= 1 && saved.grammarChapter! <= 20 ? saved.grammarChapter! : 1,
       questionsChapter: Number.isInteger(saved.questionsChapter) && saved.questionsChapter! >= 1 && saved.questionsChapter! <= 20 ? saved.questionsChapter! : 1,
-      questionIndex: Number.isInteger(saved.questionIndex) && saved.questionIndex! >= 0 && saved.questionIndex! < 20 ? saved.questionIndex! : 0
+      questionIndex: Number.isInteger(saved.questionIndex) && saved.questionIndex! >= 0 && saved.questionIndex! < 20 ? saved.questionIndex! : 0,
+      grammarLessonOpen: Boolean(saved.grammarLessonOpen)
     };
   } catch {
     return fallback;
@@ -71,7 +74,7 @@ export default function App() {
       if (QA_OVERRIDE.question !== null) return 'questions';
       if (QA_OVERRIDE.chapter !== null) return 'grammar';
     }
-    return 'dashboard';
+    return savedPanelProgress.lastStudyPanel;
   });
 
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
@@ -93,7 +96,8 @@ export default function App() {
     return savedPanelProgress.grammarChapter;
   });
   const [selectedQuestionsChapter, setSelectedQuestionsChapter] = useState<number>(() => savedPanelProgress.questionsChapter);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(() => savedPanelProgress.questionIndex);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(() => qaActive && QA_OVERRIDE.question ? QA_OVERRIDE.question - 1 : savedPanelProgress.questionIndex);
+  const [grammarLessonOpen, setGrammarLessonOpen] = useState<boolean>(() => savedPanelProgress.grammarLessonOpen);
 
   useEffect(() => {
     if (qaActive) return;
@@ -105,12 +109,13 @@ export default function App() {
         lastStudyPanel,
         grammarChapter: selectedGrammarChapter,
         questionsChapter: selectedQuestionsChapter,
-        questionIndex: currentQuestionIndex
+        questionIndex: currentQuestionIndex,
+        grammarLessonOpen
       } satisfies PersistedPanelProgress));
     } catch (error) {
       console.warn('Could not persist panel progress:', error);
     }
-  }, [activePanel, selectedGrammarChapter, selectedQuestionsChapter, currentQuestionIndex, qaActive, savedPanelProgress.lastStudyPanel]);
+  }, [activePanel, selectedGrammarChapter, selectedQuestionsChapter, currentQuestionIndex, grammarLessonOpen, qaActive, savedPanelProgress.lastStudyPanel]);
 
   // Resolve optional QA card preview
   const qaInspectedCard: PlayingCardData | null = useMemo(() => {
@@ -278,7 +283,6 @@ export default function App() {
             onAttemptSaved={handleAttemptSaved}
             earnedCardIds={earnedCardIds}
             onCardEarned={handleCardEarned}
-            initialQuestionNumber={qaActive ? QA_OVERRIDE.question : null}
           />
         )}
 
@@ -288,7 +292,8 @@ export default function App() {
             selectedChapterNumber={selectedGrammarChapter}
             onSelectChapter={setSelectedGrammarChapter}
             onNavigateToQuestions={handleNavigateToQuestions}
-            initialMobileOpen={qaActive && QA_OVERRIDE.chapter !== null}
+            initialMobileOpen={qaActive ? QA_OVERRIDE.chapter !== null : grammarLessonOpen}
+            onMobileLessonOpenChange={setGrammarLessonOpen}
           />
         )}
 
