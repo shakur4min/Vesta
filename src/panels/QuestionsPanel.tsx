@@ -25,6 +25,8 @@ interface QuestionsPanelProps {
   earnedCardIds: string[];
   onCardEarned: (cardId: string) => void;
   initialQuestionNumber?: number | null;
+  currentQuestionIndex: number;
+  onQuestionIndexChange: (index: number) => void;
 }
 
 export const QuestionsPanel: React.FC<QuestionsPanelProps> = ({
@@ -35,15 +37,11 @@ export const QuestionsPanel: React.FC<QuestionsPanelProps> = ({
   onAttemptSaved,
   earnedCardIds,
   onCardEarned,
-  initialQuestionNumber = null
+  initialQuestionNumber = null,
+  currentQuestionIndex,
+  onQuestionIndexChange
 }) => {
   const isEnFa = settings.language === 'en-fa';
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(() => {
-    if (initialQuestionNumber && initialQuestionNumber >= 1 && initialQuestionNumber <= 20) {
-      return initialQuestionNumber - 1;
-    }
-    return 0;
-  });
   const [userInput, setUserInput] = useState('');
   const [feedback, setFeedback] = useState<{ text: string; textFa?: string; isCorrect: boolean } | null>(null);
   const [newlyEarnedCardNotice, setNewlyEarnedCardNotice] = useState<string | null>(null);
@@ -146,13 +144,13 @@ export const QuestionsPanel: React.FC<QuestionsPanelProps> = ({
 
   const handleNext = () => {
     if (currentQuestionIndex < chapterQuestions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
+      onQuestionIndexChange(currentQuestionIndex + 1);
     }
   };
 
   const handlePrev = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
+      onQuestionIndexChange(currentQuestionIndex - 1);
     }
   };
 
@@ -172,7 +170,7 @@ export const QuestionsPanel: React.FC<QuestionsPanelProps> = ({
             value={activeChapterNumber}
             onChange={(e) => {
               onSelectChapter(Number(e.target.value));
-              setCurrentQuestionIndex(0);
+              onQuestionIndexChange(0);
             }}
             className="bg-zinc-950 border border-zinc-700/80 rounded px-2.5 py-1 text-xs font-serif text-white focus:outline-none focus:border-zinc-400 max-w-[240px] sm:max-w-none truncate"
           >
